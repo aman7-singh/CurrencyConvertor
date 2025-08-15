@@ -3,5 +3,6 @@
 ################################################################################
 
 .vs
-/CurrencyConvertor/obj
-/CurrencyConvertor/bin/Debug
+obj
+bin
+packages
