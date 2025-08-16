@@ -1,133 +1,106 @@
 ﻿using CurrencyConvertor.Infrastructure;
+using CurrencyConvertor.Services;
 using CurrencyConvertor.ViewModels.Interfaces;
-
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace CurrencyConvertor {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
-    /// Following SOLID principles with minimal code-behind and dependency injection
-    /// Enhanced with auto-refresh functionality and App.config integration
+    /// Refactored to follow SOLID principles with minimal code-behind and dependency injection
+    /// Enhanced with proper separation of concerns and error handling
     /// </summary>
     public partial class MainWindow : Window {
         private readonly IMainViewModel _viewModel;
+        private readonly MainWindowInitializer _initializer;
+        private readonly MainWindowCleanupService _cleanupService;
+        private readonly MainWindowErrorHandler _errorHandler;
+        private readonly ServiceContainer _serviceContainer;
 
         public MainWindow() {
             InitializeComponent();
-
-            // Get the service container and log the initialization
-            var serviceContainer = ServiceContainer.Instance;
-            var loggingService = serviceContainer.GetLoggingService();
-
-            loggingService.LogInfo("MainWindow constructor started - App.config Integration Complete");
-
-            // Use dependency injection container to create ViewModel (DIP - Dependency Inversion)
-            _viewModel = serviceContainer.CreateMainViewModel();
-
-            loggingService.LogInfo($"ViewModel created: {_viewModel.GetType().Name}");
-
-            // Set DataContext and log
-            DataContext = _viewModel;
-            loggingService.LogInfo("DataContext set to ViewModel");
-
-            // Log initial property values
-            loggingService.LogInfo($"Initial ConversionResult: '{_viewModel.ConversionResult}'");
-            loggingService.LogInfo($"Initial Amount: '{_viewModel.Amount}'");
-
-            // Log configuration values being used
-            var cacheConfig = serviceContainer.GetCacheConfiguration();
-            loggingService.LogInfo($"Active configuration - Cache: Strategy={cacheConfig.EvictionStrategy}, MaxAge={cacheConfig.MaxAgeMinutes}min, MaxElements={cacheConfig.MaxElements}, Enabled={cacheConfig.IsEnabled}");
-
-            // Initialize the application
-            _viewModel.Initialize();
-
-            // Start auto-refresh with 30-minute interval
-            _viewModel.StartAutoRefresh(30);
-            loggingService.LogInfo("Auto-refresh started with 30-minute interval");
-
-            // Test configuration asynchronously (optional - shows App.config values)
-            _ = Task.Run(async () => {
-                await Task.Delay(2000); // Wait for initialization to complete
-                await TestConfigurationIntegration();
-                await serviceContainer.TestServicesAsync();
-            });
-
-            loggingService.LogInfo("MainWindow initialization completed with App.config integration");
-
-            // Log values after initialization
-            loggingService.LogInfo($"Post-init ConversionResult: '{_viewModel.ConversionResult}'");
-        }
-
-        /// <summary>
-        /// Tests App.config integration and logs results
-        /// </summary>
-        private async Task TestConfigurationIntegration() {
+            
             try {
-                var serviceContainer = ServiceContainer.Instance;
-                var loggingService = serviceContainer.GetLoggingService();
+                // Initialize core services
+                _serviceContainer = ServiceContainer.Instance;
                 
-                loggingService.LogInfo("=== Testing App.config Integration ===");
+                // Create specialized services for MainWindow concerns
+                _initializer = new MainWindowInitializer(_serviceContainer);
+                _cleanupService = new MainWindowCleanupService(_serviceContainer);
+                _errorHandler = new MainWindowErrorHandler(
+                    _serviceContainer.GetLoggingService(),
+                    _serviceContainer.GetNotificationService());
+
+                // Initialize ViewModel through the initializer service
+                _viewModel = _initializer.InitializeViewModel();
                 
-                // Test DateValidationService configuration
-                var dateValidationService = new CurrencyConvertor.Services.DateValidationService(loggingService);
-                loggingService.LogInfo($"Historical Data Config - Max: {dateValidationService.MaxAllowedDays} days, Min: {dateValidationService.MinRequiredDays} days");
+                // Set DataContext
+                DataContext = _viewModel;
                 
-                // Test cache configuration
-                var cacheConfig = serviceContainer.GetCacheConfiguration();
-                loggingService.LogInfo($"Cache Config - Strategy: {cacheConfig.EvictionStrategy}, MaxAge: {cacheConfig.MaxAgeMinutes}min, MaxElements: {cacheConfig.MaxElements}");
-                
-                // Test HistoricalDataViewModel default range
-                var historicalVm = serviceContainer.CreateHistoricalDataViewModel();
-                if (historicalVm.StartDate.HasValue && historicalVm.EndDate.HasValue) {
-                    var defaultDays = (historicalVm.EndDate.Value - historicalVm.StartDate.Value).Days;
-                    loggingService.LogInfo($"Historical ViewModel Default Range: {defaultDays} days (configured in App.config)");
-                }
-                
-                loggingService.LogInfo("=== App.config Integration Test Complete ===");
+                // Start application asynchronously
+                _ = InitializeApplicationAsync();
             } catch (Exception ex) {
-                var serviceContainer = ServiceContainer.Instance;
-                var loggingService = serviceContainer.GetLoggingService();
-                loggingService.LogError("App.config integration test failed", ex);
+                // Handle critical initialization errors
+                HandleCriticalInitializationError(ex);
             }
         }
 
-        protected override void OnClosed(System.EventArgs e) {
+        /// <summary>
+        /// Initializes the application asynchronously
+        /// Separated from constructor to improve startup responsiveness
+        /// </summary>
+        private async Task InitializeApplicationAsync() {
             try {
-                var serviceContainer = ServiceContainer.Instance;
-                var loggingService = serviceContainer.GetLoggingService();
-                loggingService.LogInfo("MainWindow closing");
+                await _initializer.StartApplicationAsync(_viewModel);
+            } catch (Exception ex) {
+                _errorHandler.HandleInitializationError(ex, "application startup");
+            }
+        }
 
-                // Log final cache statistics
-                var cacheStats = serviceContainer.GetCacheStatistics();
-                loggingService.LogInfo($"Final cache statistics: {cacheStats}");
+        /// <summary>
+        /// Handles critical errors during MainWindow construction
+        /// </summary>
+        private void HandleCriticalInitializationError(Exception ex) {
+            try {
+                // Try to create minimal error handling if services aren't available
+                var loggingService = ServiceContainer.Instance?.GetLoggingService();
+                var notificationService = ServiceContainer.Instance?.GetNotificationService();
+                
+                if (loggingService != null && notificationService != null) {
+                    var errorHandler = new MainWindowErrorHandler(loggingService, notificationService);
+                    errorHandler.HandleCriticalError(ex, "MainWindow initialization");
+                } else {
+                    // Fallback to basic error handling
+                    MessageBox.Show(
+                        $"Critical error during application startup:\n\n{ex.Message}\n\nThe application will now close.",
+                        "Startup Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    
+                    Application.Current.Shutdown(1);
+                }
+            } catch {
+                // Last resort - basic message box
+                MessageBox.Show(
+                    "A critical error occurred during application startup. The application will now close.",
+                    "Critical Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                
+                Application.Current.Shutdown(1);
+            }
+        }
 
-                // Stop auto-refresh
-                _viewModel?.StopAutoRefresh();
-                loggingService.LogInfo("Auto-refresh stopped");
-
-                // Clean up ViewModel resources
-                _viewModel?.Dispose();
-
-                // Clean up service container (includes cache disposal)
-                serviceContainer.Dispose();
-
-                loggingService.LogInfo("MainWindow cleanup completed");
-            } catch (System.Exception ex) {
-                // If logging fails, we can't do much but at least try to continue cleanup
-                System.Console.WriteLine($"Error during MainWindow cleanup: {ex.Message}");
+        /// <summary>
+        /// Handles window closing with proper cleanup
+        /// Refactored to use dedicated cleanup service
+        /// </summary>
+        protected override void OnClosed(EventArgs e) {
+            try {
+                _cleanupService.PerformCleanup(_viewModel);
+            } catch (Exception ex) {
+                _errorHandler.HandleCleanupError(ex, "MainWindow closure");
             }
 
             base.OnClosed(e);

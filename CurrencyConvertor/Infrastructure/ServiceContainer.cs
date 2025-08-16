@@ -103,6 +103,11 @@ namespace CurrencyConvertor.Infrastructure {
         public ICacheConfiguration GetCacheConfiguration() => _cacheConfiguration;
         public IHistoricalDataCacheService GetHistoricalCacheService() => _historicalCacheService;
 
+        // Refactored: MainWindow specialized services
+        public MainWindowInitializer GetMainWindowInitializer() => new MainWindowInitializer(this);
+        public MainWindowCleanupService GetMainWindowCleanupService() => new MainWindowCleanupService(this);
+        public MainWindowErrorHandler GetMainWindowErrorHandler() => new MainWindowErrorHandler(_loggingService, _notificationService);
+
         #endregion
 
         #region ViewModel Factory Methods
@@ -206,166 +211,6 @@ namespace CurrencyConvertor.Infrastructure {
         public async System.Threading.Tasks.Task CleanupCacheAsync() {
             await _historicalCacheService.CleanupAsync();
             _loggingService.LogInfo("Cache cleanup manually triggered from ServiceContainer");
-        }
-
-        #endregion
-
-        #region Diagnostic Methods
-
-        /// <summary>
-        /// Test basic service functionality including caching for debugging
-        /// </summary>
-        public async System.Threading.Tasks.Task<bool> TestServicesAsync() {
-            try {
-                _loggingService.LogInfo("Starting service diagnostics with caching tests...");
-
-                // Test validation service
-                var isValidAmount = _validationService.IsValidAmount("1.0", out decimal amount);
-                _loggingService.LogInfo($"Amount validation test: {isValidAmount}, Amount: {amount}");
-
-                var isValidCurrency = _validationService.IsValidCurrency("EUR");
-                _loggingService.LogInfo($"Currency validation test: {isValidCurrency}");
-
-                // Test enhanced date validation
-                TestDateValidation();
-
-                // Test auto-refresh service
-                TestAutoRefreshService();
-
-                // Test cache functionality
-                await TestCacheFunctionalityAsync();
-
-                // Test currency metadata service
-                var currencies = await _metadataService.GetAvailableCurrenciesAsync();
-                _loggingService.LogInfo($"Currency metadata test: Retrieved {currencies.Count} currencies");
-
-                if (currencies.Count > 1) {
-                    // Test conversion service
-                    var conversion = await _conversionService.ConvertCurrencyAsync(currencies[0], currencies[1], 1.0m);
-                    _loggingService.LogInfo($"Conversion test: 1 {currencies[0]} = {conversion.ConvertedAmount} {currencies[1]}");
-                }
-
-                _loggingService.LogInfo("Service diagnostics completed successfully");
-                return true;
-            } catch (Exception ex) {
-                _loggingService.LogError("Service diagnostics failed", ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Test cache functionality for Part 2 verification
-        /// </summary>
-        private async System.Threading.Tasks.Task TestCacheFunctionalityAsync() {
-            _loggingService.LogInfo("Testing cache functionality (Part 2)...");
-
-            try {
-                // Test cache statistics
-                var initialStats = GetCacheStatistics();
-                _loggingService.LogInfo($"Initial cache stats: {initialStats}");
-
-                // Test cache configuration
-                _loggingService.LogInfo($"Cache configuration: Strategy={_cacheConfiguration.EvictionStrategy}, MaxAge={_cacheConfiguration.MaxAgeMinutes}min, MaxElements={_cacheConfiguration.MaxElements}, Enabled={_cacheConfiguration.IsEnabled}");
-
-                // Test historical data caching if currencies are available
-                var currencies = await _metadataService.GetAvailableCurrenciesAsync();
-                if (currencies.Count >= 2) {
-                    var fromCurrency = currencies[0];
-                    var toCurrency = currencies[1];
-                    var startDate = DateTime.Today.AddDays(-7);
-                    var endDate = DateTime.Today;
-
-                    _loggingService.LogInfo($"Testing historical data caching: {fromCurrency} -> {toCurrency}");
-
-                    // First request - should be cache miss
-                    var firstRequest = await _historicalDataService.GetHistoricalRatesAsync(fromCurrency, toCurrency, startDate, endDate);
-                    var statsAfterFirst = GetCacheStatistics();
-                    _loggingService.LogInfo($"After first request: {statsAfterFirst}");
-
-                    // Second identical request - should be cache hit
-                    var secondRequest = await _historicalDataService.GetHistoricalRatesAsync(fromCurrency, toCurrency, startDate, endDate);
-                    var statsAfterSecond = GetCacheStatistics();
-                    _loggingService.LogInfo($"After second request: {statsAfterSecond}");
-
-                    // Verify cache hit
-                    if (statsAfterSecond.HitCount > initialStats.HitCount) {
-                        _loggingService.LogInfo("Cache hit test passed!");
-                    } else {
-                        _loggingService.LogWarning("Cache hit test failed - no hit recorded");
-                    }
-                }
-
-                _loggingService.LogInfo("Cache functionality tests completed");
-            } catch (Exception ex) {
-                _loggingService.LogError("Cache functionality test failed", ex);
-            }
-        }
-
-        /// <summary>
-        /// Test the enhanced date validation functionality
-        /// </summary>
-        private void TestDateValidation() {
-            _loggingService.LogInfo("Testing enhanced date validation...");
-
-            // Test 1: Valid date range
-            var startDate = DateTime.Today.AddDays(-30);
-            var endDate = DateTime.Today;
-            var result = _validationService.ValidateDateRangeDetailed(startDate, endDate);
-            _loggingService.LogInfo($"Valid date range test: {result}");
-
-            // Test 2: Invalid date range (start > end)
-            result = _validationService.ValidateDateRangeDetailed(endDate, startDate);
-            _loggingService.LogInfo($"Invalid date range test: {result}");
-
-            // Test 3: Date too far in the past
-            var oldDate = new DateTime(1990, 1, 1);
-            result = _validationService.ValidateDateRangeDetailed(oldDate, DateTime.Today);
-            _loggingService.LogInfo($"Old date range test: {result}");
-
-            // Test 4: Future date
-            var futureDate = DateTime.Today.AddDays(30);
-            result = _validationService.ValidateDateRangeDetailed(DateTime.Today, futureDate);
-            _loggingService.LogInfo($"Future date range test: {result}");
-
-            // Test 5: Get suggested date range
-            var suggested = _validationService.GetSuggestedDateRange();
-            _loggingService.LogInfo($"Suggested date range: {suggested.startDate:yyyy-MM-dd} to {suggested.endDate:yyyy-MM-dd}");
-
-            // Test 6: Adjust invalid date range
-            var adjusted = _validationService.AdjustToValidDateRange(oldDate, futureDate);
-            _loggingService.LogInfo($"Adjusted date range: {adjusted.startDate:yyyy-MM-dd} to {adjusted.endDate:yyyy-MM-dd}");
-
-            _loggingService.LogInfo("Date validation tests completed");
-        }
-
-        /// <summary>
-        /// Test the auto-refresh service functionality
-        /// </summary>
-        private void TestAutoRefreshService() {
-            _loggingService.LogInfo("Testing auto-refresh service...");
-
-            // Test statistics when stopped
-            var stats = _autoRefreshService.GetStatistics();
-            _loggingService.LogInfo($"Initial auto-refresh stats: {stats}");
-
-            // Test setting custom interval
-            _autoRefreshService.SetRefreshInterval(TimeSpan.FromMinutes(15));
-            _loggingService.LogInfo("Set custom refresh interval to 15 minutes");
-
-            // Test event subscription
-            _autoRefreshService.CurrencyRefreshCompleted += OnCurrencyRefreshCompleted;
-            _autoRefreshService.RefreshStatusChanged += OnRefreshStatusChanged;
-
-            _loggingService.LogInfo("Auto-refresh service tests completed");
-        }
-
-        private void OnCurrencyRefreshCompleted(object sender, CurrencyRefreshEventArgs e) {
-            var refreshType = e.IsManualRefresh ? "Manual" : "Auto";
-            _loggingService.LogInfo($"{refreshType} refresh completed: {e.Message}");
-        }
-
-        private void OnRefreshStatusChanged(object sender, string status) {
-            _loggingService.LogInfo($"Auto-refresh status: {status}");
         }
 
         #endregion

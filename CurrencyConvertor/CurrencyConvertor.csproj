@@ -74,9 +74,11 @@
     <Compile Include="Services\Interfaces\ICacheService.cs" />
     <Compile Include="Services\Interfaces\ICurrencyConversionService.cs" />
     <Compile Include="Services\Interfaces\ICurrencyService.cs" />
+    <Compile Include="Services\MainWindowCleanupService.cs" />
+    <Compile Include="Services\MainWindowErrorHandler.cs" />
+    <Compile Include="Services\MainWindowInitializer.cs" />
     <Compile Include="Services\ResilientServices.cs" />
     <Compile Include="Services\ThreadSafeCacheService.cs" />
-    <Compile Include="Testing\ConfigurationTester.cs" />
     <Compile Include="ViewModels\ApplicationStatusViewModel.cs" />
     <Compile Include="ViewModels\CurrencyConversionViewModel.cs" />
     <Compile Include="ViewModels\HistoricalDataViewModel.cs" />
@@ -122,12 +124,15 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+    <None Include="REFACTORING_SUMMARY.md" />
+    <None Include="TEST_REMOVAL_SUMMARY.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Documentation\" />
+    <Folder Include="Testing\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
