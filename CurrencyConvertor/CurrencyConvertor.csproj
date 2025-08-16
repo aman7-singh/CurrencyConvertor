@@ -58,6 +58,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Commands\RelayCommand.cs" />
+    <Compile Include="Infrastructure\ServiceContainer.cs" />
     <Compile Include="Models\ConversionApiResponse.cs" />
     <Compile Include="Models\CurrencyConversion.cs" />
     <Compile Include="Models\HistoricalApiResponse.cs" />
@@ -69,6 +71,10 @@
     <Compile Include="Services\Interfaces\ICurrencyConversionService.cs" />
     <Compile Include="Services\Interfaces\ICurrencyService.cs" />
     <Compile Include="Services\ResilientServices.cs" />
+    <Compile Include="ViewModels\ApplicationStatusViewModel.cs" />
+    <Compile Include="ViewModels\CurrencyConversionViewModel.cs" />
+    <Compile Include="ViewModels\HistoricalDataViewModel.cs" />
+    <Compile Include="ViewModels\Interfaces\IViewModels.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />
     <Page Include="MainWindow.xaml">

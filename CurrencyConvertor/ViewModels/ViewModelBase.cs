@@ -7,7 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CurrencyConvertor.ViewModels {
-    public class ViewModelBase : INotifyPropertyChanged {
+    /// <summary>
+    /// Base class for ViewModels that implements INotifyPropertyChanged and IDisposable
+    /// </summary>
+    public abstract class ViewModelBase : INotifyPropertyChanged, IDisposable {
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null) {
@@ -22,5 +25,26 @@ namespace CurrencyConvertor.ViewModels {
             OnPropertyChanged(propertyName);
             return true;
         }
+
+        #region IDisposable Support
+
+        private bool _disposed = false;
+
+        protected virtual void Dispose(bool disposing) {
+            if (!_disposed) {
+                if (disposing) {
+                    // Dispose managed resources here
+                }
+
+                _disposed = true;
+            }
+        }
+
+        public void Dispose() {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        #endregion
     }
 }
