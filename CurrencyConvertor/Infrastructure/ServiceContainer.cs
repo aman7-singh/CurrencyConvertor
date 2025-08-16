@@ -2,7 +2,7 @@
 using CurrencyConvertor.Services.Interfaces;
 using CurrencyConvertor.ViewModels;
 using CurrencyConvertor.ViewModels.Interfaces;
-
+using CurrencyConvertor.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace CurrencyConvertor.Infrastructure {
     /// <summary>
     /// Simple dependency injection container following DIP (Dependency Inversion Principle)
-    /// Enhanced with auto-refresh currency service
+    /// Enhanced with auto-refresh currency service and Part 2 caching functionality
     /// </summary>
     public class ServiceContainer {
         private static ServiceContainer _instance;
@@ -45,22 +45,38 @@ namespace CurrencyConvertor.Infrastructure {
         private IInitializationService _initializationService;
         private CurrencyAutoRefreshService _autoRefreshService;
 
+        // Part 2: Cache services for Celonis Challenge
+        private ICacheConfiguration _cacheConfiguration;
+        private ICacheService<string, List<HistoricalRate>> _cacheService;
+        private IHistoricalDataCacheService _historicalCacheService;
+
         private void RegisterServices() {
             // Core services
             _loggingService = new ConsoleLoggingService();
             _notificationService = new WpfNotificationService();
             _validationService = new ValidationService(_loggingService);
 
+            // Part 2: Cache configuration and services
+            _cacheConfiguration = new CacheConfiguration(_loggingService);
+            _cacheService = new ThreadSafeCacheService<string, List<HistoricalRate>>(_cacheConfiguration, _loggingService);
+            _historicalCacheService = new HistoricalDataCacheService(_cacheService, _loggingService);
+
             // Currency services - using the same instance that implements multiple interfaces
-            var currencyService = new CurrencyService(_loggingService);
-            _currencyService = currencyService;
-            _conversionService = currencyService;
-            _historicalDataService = currencyService;
+            var baseCurrencyService = new CurrencyService(_loggingService);
+            _currencyService = baseCurrencyService;
+            _conversionService = baseCurrencyService;
+
+            // Part 2: Wrap historical data service with caching
+            _historicalDataService = new CachedHistoricalDataService(
+                baseCurrencyService, 
+                _historicalCacheService, 
+                _cacheConfiguration, 
+                _loggingService);
 
             // Resilient metadata service with fallback
             var fallbackMetadataService = new FallbackCurrencyMetadataService(_loggingService);
             _metadataService = new ResilientCurrencyMetadataService(
-                currencyService, fallbackMetadataService, _loggingService);
+                baseCurrencyService, fallbackMetadataService, _loggingService);
 
             // Auto-refresh service
             _autoRefreshService = new CurrencyAutoRefreshService(_metadataService, _loggingService);
@@ -68,7 +84,7 @@ namespace CurrencyConvertor.Infrastructure {
             // Initialization service
             _initializationService = new ApplicationInitializationService(_currencyService, _loggingService);
 
-            _loggingService.LogInfo("Services registered successfully with auto-refresh capability");
+            _loggingService.LogInfo($"Services registered successfully with caching ({_cacheConfiguration.EvictionStrategy} strategy) and auto-refresh capability");
         }
 
         #region Service Getters
@@ -82,6 +98,10 @@ namespace CurrencyConvertor.Infrastructure {
         public IHistoricalDataService GetHistoricalDataService() => _historicalDataService;
         public IInitializationService GetInitializationService() => _initializationService;
         public CurrencyAutoRefreshService GetAutoRefreshService() => _autoRefreshService;
+
+        // Part 2: Cache service getters
+        public ICacheConfiguration GetCacheConfiguration() => _cacheConfiguration;
+        public IHistoricalDataCacheService GetHistoricalCacheService() => _historicalCacheService;
 
         #endregion
 
@@ -97,7 +117,7 @@ namespace CurrencyConvertor.Infrastructure {
         }
 
         public IHistoricalDataViewModel CreateHistoricalDataViewModel() {
-            _loggingService.LogInfo("Creating HistoricalDataViewModel");
+            _loggingService.LogInfo("Creating HistoricalDataViewModel with caching support");
             return new HistoricalDataViewModel(
                 _historicalDataService,
                 _validationService,
@@ -111,7 +131,7 @@ namespace CurrencyConvertor.Infrastructure {
         }
 
         public IMainViewModel CreateMainViewModel() {
-            _loggingService.LogInfo("Creating MainViewModel with auto-refresh integration");
+            _loggingService.LogInfo("Creating MainViewModel with auto-refresh integration and caching");
             return new MainViewModel(
                 CreateConversionViewModel(),
                 CreateHistoricalDataViewModel(),
@@ -163,14 +183,41 @@ namespace CurrencyConvertor.Infrastructure {
 
         #endregion
 
+        #region Part 2: Cache Management
+
+        /// <summary>
+        /// Gets cache statistics for monitoring
+        /// </summary>
+        public CacheStatistics GetCacheStatistics() {
+            return _historicalCacheService.GetStatistics();
+        }
+
+        /// <summary>
+        /// Manually clears the historical data cache
+        /// </summary>
+        public async System.Threading.Tasks.Task ClearCacheAsync() {
+            await _historicalCacheService.ClearAsync();
+            _loggingService.LogInfo("Cache manually cleared from ServiceContainer");
+        }
+
+        /// <summary>
+        /// Manually triggers cache cleanup
+        /// </summary>
+        public async System.Threading.Tasks.Task CleanupCacheAsync() {
+            await _historicalCacheService.CleanupAsync();
+            _loggingService.LogInfo("Cache cleanup manually triggered from ServiceContainer");
+        }
+
+        #endregion
+
         #region Diagnostic Methods
 
         /// <summary>
-        /// Test basic service functionality for debugging
+        /// Test basic service functionality including caching for debugging
         /// </summary>
         public async System.Threading.Tasks.Task<bool> TestServicesAsync() {
             try {
-                _loggingService.LogInfo("Starting service diagnostics...");
+                _loggingService.LogInfo("Starting service diagnostics with caching tests...");
 
                 // Test validation service
                 var isValidAmount = _validationService.IsValidAmount("1.0", out decimal amount);
@@ -184,6 +231,9 @@ namespace CurrencyConvertor.Infrastructure {
 
                 // Test auto-refresh service
                 TestAutoRefreshService();
+
+                // Test cache functionality
+                await TestCacheFunctionalityAsync();
 
                 // Test currency metadata service
                 var currencies = await _metadataService.GetAvailableCurrenciesAsync();
@@ -200,6 +250,54 @@ namespace CurrencyConvertor.Infrastructure {
             } catch (Exception ex) {
                 _loggingService.LogError("Service diagnostics failed", ex);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Test cache functionality for Part 2 verification
+        /// </summary>
+        private async System.Threading.Tasks.Task TestCacheFunctionalityAsync() {
+            _loggingService.LogInfo("Testing cache functionality (Part 2)...");
+
+            try {
+                // Test cache statistics
+                var initialStats = GetCacheStatistics();
+                _loggingService.LogInfo($"Initial cache stats: {initialStats}");
+
+                // Test cache configuration
+                _loggingService.LogInfo($"Cache configuration: Strategy={_cacheConfiguration.EvictionStrategy}, MaxAge={_cacheConfiguration.MaxAgeMinutes}min, MaxElements={_cacheConfiguration.MaxElements}, Enabled={_cacheConfiguration.IsEnabled}");
+
+                // Test historical data caching if currencies are available
+                var currencies = await _metadataService.GetAvailableCurrenciesAsync();
+                if (currencies.Count >= 2) {
+                    var fromCurrency = currencies[0];
+                    var toCurrency = currencies[1];
+                    var startDate = DateTime.Today.AddDays(-7);
+                    var endDate = DateTime.Today;
+
+                    _loggingService.LogInfo($"Testing historical data caching: {fromCurrency} -> {toCurrency}");
+
+                    // First request - should be cache miss
+                    var firstRequest = await _historicalDataService.GetHistoricalRatesAsync(fromCurrency, toCurrency, startDate, endDate);
+                    var statsAfterFirst = GetCacheStatistics();
+                    _loggingService.LogInfo($"After first request: {statsAfterFirst}");
+
+                    // Second identical request - should be cache hit
+                    var secondRequest = await _historicalDataService.GetHistoricalRatesAsync(fromCurrency, toCurrency, startDate, endDate);
+                    var statsAfterSecond = GetCacheStatistics();
+                    _loggingService.LogInfo($"After second request: {statsAfterSecond}");
+
+                    // Verify cache hit
+                    if (statsAfterSecond.HitCount > initialStats.HitCount) {
+                        _loggingService.LogInfo("Cache hit test passed!");
+                    } else {
+                        _loggingService.LogWarning("Cache hit test failed - no hit recorded");
+                    }
+                }
+
+                _loggingService.LogInfo("Cache functionality tests completed");
+            } catch (Exception ex) {
+                _loggingService.LogError("Cache functionality test failed", ex);
             }
         }
 
@@ -281,6 +379,10 @@ namespace CurrencyConvertor.Infrastructure {
                 // Stop auto-refresh and dispose
                 _autoRefreshService?.Stop();
                 _autoRefreshService?.Dispose();
+
+                // Part 2: Dispose cache services
+                (_cacheService as IDisposable)?.Dispose();
+                (_historicalDataService as IDisposable)?.Dispose();
 
                 // Dispose other services
                 (_currencyService as IDisposable)?.Dispose();

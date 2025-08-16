@@ -65,12 +65,17 @@
     <Compile Include="Models\HistoricalApiResponse.cs" />
     <Compile Include="Models\HistoricalRate.cs" />
     <Compile Include="Services\ApplicationServices.cs" />
+    <Compile Include="Services\CacheConfiguration.cs" />
+    <Compile Include="Services\CachedHistoricalDataService.cs" />
     <Compile Include="Services\CurrencyService.cs" />
     <Compile Include="Services\ApplicationInitializationService.cs" />
+    <Compile Include="Services\HistoricalDataCacheService.cs" />
     <Compile Include="Services\Interfaces\IApplicationServices.cs" />
+    <Compile Include="Services\Interfaces\ICacheService.cs" />
     <Compile Include="Services\Interfaces\ICurrencyConversionService.cs" />
     <Compile Include="Services\Interfaces\ICurrencyService.cs" />
     <Compile Include="Services\ResilientServices.cs" />
+    <Compile Include="Services\ThreadSafeCacheService.cs" />
     <Compile Include="ViewModels\ApplicationStatusViewModel.cs" />
     <Compile Include="ViewModels\CurrencyConversionViewModel.cs" />
     <Compile Include="ViewModels\HistoricalDataViewModel.cs" />
@@ -109,6 +114,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="packages.config" />
+    <None Include="PART2_IMPLEMENTATION.md" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -116,6 +122,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Documentation\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

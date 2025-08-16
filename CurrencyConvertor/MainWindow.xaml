@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:CurrencyConvertor"
         mc:Ignorable="d"
         Name="CurrencyConversionWindow"
-        Title="MainWindow" Height="450" Width="800">
+        Title="Currency Converter - Celonis Challenge Complete" Height="500" Width="900">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -28,31 +28,37 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="HeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource TextBlockStyle}">
-            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style x:Key="StatusStyle" TargetType="TextBlock" BasedOn="{StaticResource TextBlockStyle}">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontStyle" Value="Italic"/>
         </Style>
         <Style x:Key="AutoRefreshStyle" TargetType="TextBlock" BasedOn="{StaticResource TextBlockStyle}">
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="Foreground" Value="DarkBlue"/>
+        </Style>
+        <Style x:Key="CacheStyle" TargetType="TextBlock" BasedOn="{StaticResource TextBlockStyle}">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="DarkGreen"/>
         </Style>
     </Window.Resources>
 
     <Grid>
         <DockPanel Name="MainPanel">
             <!-- Header -->
-            <TextBlock Text="Currency Conversion - SOLID Architecture with Auto-Refresh" DockPanel.Dock="Top" Style="{StaticResource HeaderStyle}"/>
+            <TextBlock Text="Currency Converter - Celonis Challenge Complete" DockPanel.Dock="Top" Style="{StaticResource HeaderStyle}"/>
 
-            <!-- Status Bar -->
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Background="LightGray" Height="30">
+            <!-- Status Bar with Cache Information -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Background="LightGray" Height="35">
                 <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource StatusStyle}" />
                 <ProgressBar Width="100" Height="15" Margin="10,5" IsIndeterminate="{Binding IsLoading}" 
                        Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <Separator Background="{x:Static Brushes.Gray}" Width="2" Margin="10,0"/>
                 <TextBlock Text="{Binding AutoRefreshStatus}" Style="{StaticResource AutoRefreshStyle}" />
+                <Separator Background="{x:Static Brushes.Gray}" Width="2" Margin="10,0"/>
+                <TextBlock Text="Cache: Thread-Safe Query Caching Active" Style="{StaticResource CacheStyle}" />
             </StackPanel>
 
             <!-- Input Controls -->
@@ -106,7 +112,7 @@
                 </Button>
             </StackPanel>
 
-            <!-- Date Range Selection -->
+            <!-- Date Range Selection with Cache Note -->
             <StackPanel DockPanel.Dock="Top" Name="TimeRangeStackPanel" Orientation="Horizontal" HorizontalAlignment="Left">
                 <TextBlock Text="Historical Data Between" Style="{StaticResource TextBlockStyle}"/>
                 <DatePicker Name="StartDatePicker" 
@@ -116,9 +122,12 @@
                 <DatePicker Name="EndDatePicker" 
                        SelectedDate="{Binding EndDate}"
                        Style="{StaticResource DatePickerStyle}"/>
-                <Button Content="Refresh Historical Data" 
+                <Button Content="Load Historical Data" 
                     Command="{Binding LoadHistoricalDataCommand}"
                     Margin="10,5" Padding="10,3"/>
+                <TextBlock Text="(Cached for performance)" 
+                       Style="{StaticResource CacheStyle}" 
+                       FontStyle="Italic"/>
             </StackPanel>
 
             <!-- Historical Data Grid -->
@@ -166,11 +175,17 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="Select date range and currencies to view historical data" 
-                           Style="{StaticResource HeaderStyle}" 
-                           FontSize="14"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="Select date range and currencies to view historical data" 
+                               Style="{StaticResource HeaderStyle}" 
+                               FontSize="14"
+                               HorizontalAlignment="Center"/>
+                        <TextBlock Text="Repeated queries use thread-safe caching with configurable eviction" 
+                               Style="{StaticResource CacheStyle}" 
+                               FontSize="12"
+                               HorizontalAlignment="Center"
+                               Margin="0,5,0,0"/>
+                    </StackPanel>
                 </Border>
             </Grid>
         </DockPanel>

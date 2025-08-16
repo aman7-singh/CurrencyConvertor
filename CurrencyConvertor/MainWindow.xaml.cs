@@ -20,7 +20,7 @@ namespace CurrencyConvertor {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// Following SOLID principles with minimal code-behind and dependency injection
-    /// Enhanced with auto-refresh functionality
+    /// Enhanced with auto-refresh functionality and Part 2 caching
     /// </summary>
     public partial class MainWindow : Window {
         private readonly IMainViewModel _viewModel;
@@ -32,7 +32,7 @@ namespace CurrencyConvertor {
             var serviceContainer = ServiceContainer.Instance;
             var loggingService = serviceContainer.GetLoggingService();
 
-            loggingService.LogInfo("MainWindow constructor started");
+            loggingService.LogInfo("MainWindow constructor started - Celonis Challenge Complete Implementation");
 
             // Use dependency injection container to create ViewModel (DIP - Dependency Inversion)
             _viewModel = serviceContainer.CreateMainViewModel();
@@ -47,6 +47,10 @@ namespace CurrencyConvertor {
             loggingService.LogInfo($"Initial ConversionResult: '{_viewModel.ConversionResult}'");
             loggingService.LogInfo($"Initial Amount: '{_viewModel.Amount}'");
 
+            // Log cache configuration
+            var cacheConfig = serviceContainer.GetCacheConfiguration();
+            loggingService.LogInfo($"Cache configuration: Strategy={cacheConfig.EvictionStrategy}, MaxAge={cacheConfig.MaxAgeMinutes}min, MaxElements={cacheConfig.MaxElements}, Enabled={cacheConfig.IsEnabled}");
+
             // Initialize the application
             _viewModel.Initialize();
 
@@ -54,7 +58,13 @@ namespace CurrencyConvertor {
             _viewModel.StartAutoRefresh(30);
             loggingService.LogInfo("Auto-refresh started with 30-minute interval");
 
-            loggingService.LogInfo("MainWindow initialization completed");
+            // Test cache functionality asynchronously
+            _ = Task.Run(async () => {
+                await Task.Delay(2000); // Wait for initialization to complete
+                await serviceContainer.TestServicesAsync();
+            });
+
+            loggingService.LogInfo("MainWindow initialization completed with Part 2 caching");
 
             // Log values after initialization
             loggingService.LogInfo($"Post-init ConversionResult: '{_viewModel.ConversionResult}'");
@@ -62,8 +72,13 @@ namespace CurrencyConvertor {
 
         protected override void OnClosed(System.EventArgs e) {
             try {
-                var loggingService = ServiceContainer.Instance.GetLoggingService();
+                var serviceContainer = ServiceContainer.Instance;
+                var loggingService = serviceContainer.GetLoggingService();
                 loggingService.LogInfo("MainWindow closing");
+
+                // Log final cache statistics
+                var cacheStats = serviceContainer.GetCacheStatistics();
+                loggingService.LogInfo($"Final cache statistics: {cacheStats}");
 
                 // Stop auto-refresh
                 _viewModel?.StopAutoRefresh();
@@ -72,8 +87,8 @@ namespace CurrencyConvertor {
                 // Clean up ViewModel resources
                 _viewModel?.Dispose();
 
-                // Clean up service container
-                ServiceContainer.Instance.Dispose();
+                // Clean up service container (includes cache disposal)
+                serviceContainer.Dispose();
 
                 loggingService.LogInfo("MainWindow cleanup completed");
             } catch (System.Exception ex) {
