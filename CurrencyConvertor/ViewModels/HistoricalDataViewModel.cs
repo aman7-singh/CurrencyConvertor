@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Configuration;
 
 namespace CurrencyConvertor.ViewModels {
     /// <summary>
@@ -39,11 +40,56 @@ namespace CurrencyConvertor.ViewModels {
 
             HistoricalRates = new ObservableCollection<HistoricalRate>();
 
-            // Set default date range
-            StartDate = DateTime.Today.AddDays(-30);
+            // Set default date range from configuration
+            var defaultDays = LoadDefaultDateRangeFromConfig();
+            StartDate = DateTime.Today.AddDays(-defaultDays);
             EndDate = DateTime.Today;
 
+            _loggingService?.LogInfo($"HistoricalDataViewModel initialized with {defaultDays}-day default range");
+
             LoadHistoricalDataCommand = new RelayCommand(async () => await LoadHistoricalDataAsync(), CanLoadHistoricalData);
+        }
+
+        /// <summary>
+        /// Loads default date range from App.config
+        /// </summary>
+        private int LoadDefaultDateRangeFromConfig() {
+            try {
+                // Read from App.config using helper method
+                var configValue = GetAppSetting("DefaultHistoricalDataDays", null);
+                if (!string.IsNullOrEmpty(configValue) && int.TryParse(configValue, out var defaultDays) && defaultDays > 0) {
+                    _loggingService?.LogInfo($"Loaded DefaultHistoricalDataDays from App.config: {defaultDays} days");
+                    return defaultDays;
+                }
+                
+                _loggingService?.LogWarning($"Invalid or missing DefaultHistoricalDataDays in App.config: '{configValue}', using default");
+            } catch (Exception ex) {
+                _loggingService?.LogWarning($"Failed to load DefaultHistoricalDataDays from App.config: {ex.Message}");
+            }
+            
+            // Use fallback default if config is not available or invalid
+            const int fallbackDefault = 30;
+            _loggingService?.LogInfo($"Using fallback DefaultHistoricalDataDays: {fallbackDefault} days");
+            return fallbackDefault;
+        }
+
+        /// <summary>
+        /// Helper method to get app settings using reflection (works with .NET Framework 4.8)
+        /// </summary>
+        private string GetAppSetting(string key, string defaultValue) {
+            try {
+                // Use reflection to access ConfigurationManager
+                var configManagerType = Type.GetType("System.Configuration.ConfigurationManager, System.Configuration, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+                if (configManagerType != null) {
+                    var appSettingsProperty = configManagerType.GetProperty("AppSettings");
+                    var appSettings = appSettingsProperty?.GetValue(null) as System.Collections.Specialized.NameValueCollection;
+                    return appSettings?[key] ?? defaultValue;
+                }
+            } catch (Exception ex) {
+                _loggingService?.LogWarning($"Could not read app setting '{key}': {ex.Message}");
+            }
+            
+            return defaultValue;
         }
 
         #region Properties

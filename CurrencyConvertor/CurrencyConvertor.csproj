@@ -76,6 +76,7 @@
     <Compile Include="Services\Interfaces\ICurrencyService.cs" />
     <Compile Include="Services\ResilientServices.cs" />
     <Compile Include="Services\ThreadSafeCacheService.cs" />
+    <Compile Include="Testing\ConfigurationTester.cs" />
     <Compile Include="ViewModels\ApplicationStatusViewModel.cs" />
     <Compile Include="ViewModels\CurrencyConversionViewModel.cs" />
     <Compile Include="ViewModels\HistoricalDataViewModel.cs" />
@@ -113,6 +114,8 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="APP_CONFIG_INTEGRATION_COMPLETE.md" />
+    <None Include="CONFIGURATION_GUIDE_HISTORICAL_DAYS.md" />
     <None Include="packages.config" />
     <None Include="PART2_IMPLEMENTATION.md" />
     <None Include="Properties\Settings.settings">
