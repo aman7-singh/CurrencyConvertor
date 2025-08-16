@@ -1,5 +1,6 @@
 ﻿using CurrencyConvertor.Services;
 using CurrencyConvertor.Services.Interfaces;
+using CurrencyConvertor.Services.Models;
 using CurrencyConvertor.ViewModels;
 using CurrencyConvertor.ViewModels.Interfaces;
 using CurrencyConvertor.Models;

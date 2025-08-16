@@ -1,5 +1,7 @@
 using CurrencyConvertor.Models;
 using CurrencyConvertor.Services.Interfaces;
+using CurrencyConvertor.Services.Enums;
+using CurrencyConvertor.Services.Models;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

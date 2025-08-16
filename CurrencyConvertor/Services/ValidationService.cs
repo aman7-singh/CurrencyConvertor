@@ -1,30 +1,8 @@
-﻿using CurrencyConvertor.Services.Interfaces;
-
+using CurrencyConvertor.Services.Interfaces;
+using CurrencyConvertor.Services.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 
 namespace CurrencyConvertor.Services {
-    /// <summary>
-    /// WPF-specific notification service implementation (SRP - Single Responsibility)
-    /// </summary>
-    public class WpfNotificationService : INotificationService {
-        public void ShowError(string message, string title = "Error") {
-            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-
-        public void ShowWarning(string message, string title = "Warning") {
-            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-
-        public void ShowInfo(string message, string title = "Information") {
-            MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-    }
-
     /// <summary>
     /// Enhanced input validation service implementation (SRP - Single Responsibility)
     /// Now integrates with comprehensive date validation
@@ -147,26 +125,6 @@ namespace CurrencyConvertor.Services {
         /// <returns>Adjusted valid date range</returns>
         public (DateTime startDate, DateTime endDate) AdjustToValidDateRange(DateTime? startDate, DateTime? endDate) {
             return _dateValidationService.AdjustDateRange(startDate, endDate);
-        }
-    }
-
-    /// <summary>
-    /// Simple logging service implementation (SRP - Single Responsibility)
-    /// </summary>
-    public class ConsoleLoggingService : ILoggingService {
-        public void LogError(string message, Exception exception = null) {
-            Console.WriteLine($"[ERROR] {DateTime.Now:yyyy-MM-dd HH:mm:ss}: {message}");
-            if (exception != null) {
-                Console.WriteLine($"Exception: {exception}");
-            }
-        }
-
-        public void LogWarning(string message) {
-            Console.WriteLine($"[WARNING] {DateTime.Now:yyyy-MM-dd HH:mm:ss}: {message}");
-        }
-
-        public void LogInfo(string message) {
-            Console.WriteLine($"[INFO] {DateTime.Now:yyyy-MM-dd HH:mm:ss}: {message}");
         }
     }
 }

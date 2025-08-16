@@ -1,4 +1,5 @@
 using CurrencyConvertor.Services.Interfaces;
+using CurrencyConvertor.Services.Enums;
 using System;
 
 namespace CurrencyConvertor.Services {
