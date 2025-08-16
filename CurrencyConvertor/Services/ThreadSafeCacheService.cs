@@ -73,6 +73,24 @@ namespace CurrencyConvertor.Services {
             });
         }
 
+        public async Task<bool> ContainsAsync(TKey key) {
+            if (!_configuration.IsEnabled) {
+                return false;
+            }
+
+            return await Task.Run(() => {
+                _lock.EnterReadLock();
+                try {
+                    if (_cache.TryGetValue(key, out var cacheItem)) {
+                        return IsItemValid(cacheItem);
+                    }
+                    return false;
+                } finally {
+                    _lock.ExitReadLock();
+                }
+            });
+        }
+
         public async Task SetAsync(TKey key, TValue value) {
             if (!_configuration.IsEnabled) {
                 return;

@@ -44,29 +44,15 @@ namespace CurrencyConvertor.Services {
             }
 
             try {
-                // Generate cache key
-                var cacheKey = _cacheService.GenerateKey(fromCurrency, toCurrency, startDate, endDate);
+                // Generate cache key using the concrete implementation method
+                var cacheKey = (_cacheService as HistoricalDataCacheService)?.GenerateKey(fromCurrency, toCurrency, startDate, endDate) 
+                              ?? $"HIST_{fromCurrency}_{toCurrency}_{startDate:yyyy-MM-dd}_{endDate:yyyy-MM-dd}";
 
-                // Try to get from cache first
-                var cachedData = await _cacheService.GetAsync(cacheKey);
-                if (cachedData != null && cachedData.Count > 0) {
-                    _loggingService?.LogInfo($"Cache hit for historical data query, returning {cachedData.Count} rates");
-                    return cachedData;
-                }
-
-                // Cache miss - fetch from base service
-                _loggingService?.LogInfo("Cache miss, fetching from API");
-                var freshData = await _baseService.GetHistoricalRatesAsync(fromCurrency, toCurrency, startDate, endDate);
-
-                // Cache the fresh data for future requests
-                if (freshData != null && freshData.Count > 0) {
-                    await _cacheService.SetAsync(cacheKey, freshData);
-                    _loggingService?.LogInfo($"Cached {freshData.Count} historical rates for future requests");
-                } else {
-                    _loggingService?.LogWarning("No data received from base service, not caching");
-                }
-
-                return freshData;
+                // Use the cache service's GetHistoricalRatesAsync method
+                return await _cacheService.GetHistoricalRatesAsync(cacheKey, async () => {
+                    _loggingService?.LogInfo("Cache miss, fetching from API");
+                    return await _baseService.GetHistoricalRatesAsync(fromCurrency, toCurrency, startDate, endDate);
+                });
             } catch (Exception ex) {
                 _loggingService?.LogError("Error in cached historical data service", ex);
                 
@@ -98,19 +84,6 @@ namespace CurrencyConvertor.Services {
         public async Task CleanupCacheAsync() {
             await _cacheService.CleanupAsync();
             _loggingService?.LogInfo("Cache cleanup manually triggered");
-        }
-
-        /// <summary>
-        /// Removes a specific cache entry
-        /// </summary>
-        /// <param name="fromCurrency">Source currency</param>
-        /// <param name="toCurrency">Target currency</param>
-        /// <param name="startDate">Start date</param>
-        /// <param name="endDate">End date</param>
-        public async Task InvalidateCacheEntryAsync(string fromCurrency, string toCurrency, DateTime startDate, DateTime endDate) {
-            var cacheKey = _cacheService.GenerateKey(fromCurrency, toCurrency, startDate, endDate);
-            await _cacheService.RemoveAsync(cacheKey);
-            _loggingService?.LogInfo($"Cache entry invalidated for key: {cacheKey}");
         }
 
         public void Dispose() {

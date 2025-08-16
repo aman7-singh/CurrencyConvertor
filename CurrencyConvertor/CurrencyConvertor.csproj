@@ -71,8 +71,6 @@
     <Compile Include="Services\ApplicationInitializationService.cs" />
     <Compile Include="Services\HistoricalDataCacheService.cs" />
     <Compile Include="Services\Interfaces\IApplicationServices.cs" />
-    <Compile Include="Services\Interfaces\ICacheService.cs" />
-    <Compile Include="Services\Interfaces\ICurrencyConversionService.cs" />
     <Compile Include="Services\Interfaces\ICurrencyService.cs" />
     <Compile Include="Services\MainWindowCleanupService.cs" />
     <Compile Include="Services\MainWindowErrorHandler.cs" />

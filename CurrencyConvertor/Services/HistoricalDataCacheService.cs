@@ -23,30 +23,52 @@ namespace CurrencyConvertor.Services {
             _loggingService = loggingService;
         }
 
-        public async Task<List<HistoricalRate>> GetAsync(string key) {
-            return await _cacheService.GetAsync(key);
-        }
+        public async Task<List<HistoricalRate>> GetHistoricalRatesAsync(string cacheKey, Func<Task<List<HistoricalRate>>> dataFactory) {
+            try {
+                // Try to get from cache first
+                var cachedData = await _cacheService.GetAsync(cacheKey);
+                if (cachedData != null && cachedData.Count > 0) {
+                    _loggingService?.LogInfo($"Retrieved {cachedData.Count} historical rates from cache for key: {cacheKey}");
+                    return cachedData;
+                }
 
-        public async Task SetAsync(string key, List<HistoricalRate> value) {
-            await _cacheService.SetAsync(key, value);
-        }
+                // Cache miss - get data from the factory
+                _loggingService?.LogInfo($"Cache miss for key: {cacheKey}, fetching from data source");
+                var freshData = await dataFactory();
 
-        public async Task RemoveAsync(string key) {
-            await _cacheService.RemoveAsync(key);
+                // Store in cache for future use
+                if (freshData != null && freshData.Count > 0) {
+                    await _cacheService.SetAsync(cacheKey, freshData);
+                    _loggingService?.LogInfo($"Cached {freshData.Count} historical rates for key: {cacheKey}");
+                }
+
+                return freshData ?? new List<HistoricalRate>();
+            } catch (Exception ex) {
+                _loggingService?.LogError($"Error getting historical rates for key: {cacheKey}", ex);
+                throw;
+            }
         }
 
         public async Task ClearAsync() {
             await _cacheService.ClearAsync();
-        }
-
-        public CacheStatistics GetStatistics() {
-            return _cacheService.GetStatistics();
+            _loggingService?.LogInfo("Historical data cache cleared");
         }
 
         public async Task CleanupAsync() {
-            await _cacheService.CleanupAsync();
+            if (_cacheService is ThreadSafeCacheService<string, List<HistoricalRate>> threadSafeCache) {
+                await threadSafeCache.CleanupAsync();
+                _loggingService?.LogInfo("Historical data cache cleanup completed");
+            }
         }
 
+        public CacheStatistics GetStatistics() {
+            if (_cacheService is ThreadSafeCacheService<string, List<HistoricalRate>> threadSafeCache) {
+                return threadSafeCache.GetStatistics();
+            }
+            return new CacheStatistics();
+        }
+
+        // Additional helper methods for cache key generation
         public string GenerateKey(string fromCurrency, string toCurrency, DateTime startDate, DateTime endDate) {
             if (string.IsNullOrWhiteSpace(fromCurrency) || string.IsNullOrWhiteSpace(toCurrency)) {
                 throw new ArgumentException("Currency codes cannot be null or empty");
